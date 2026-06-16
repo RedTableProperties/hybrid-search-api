@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
+"""
+Soda Core CLI Automation Script
+
+Usage:
+    python -m data_quality.cli.run_soda_checks --checks normalized_data
+    python -m data_quality.cli.run_soda_checks --checks normalized_data enriched_data --fail-on-error
+    python -m data_quality.cli.run_soda_checks --checks normalized_data --input ./records.json
+"""
+
 import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -12,11 +22,8 @@ import pandas as pd
 
 from data_quality.soda_manager import SodaDataQualityManager
 
-CHECKS_BY_DATASET = {
-    "normalized_data": ["normalized_data.yml"],
-    "enriched_data": ["enriched_data.yml"],
-    "published_data": ["published_data.yml"],
-}
+CHECKS_DIR = ROOT / "data_quality" / "checks"
+FIXTURES_DIR = ROOT / "data_quality" / "fixtures"
 
 
 def _load_dataframe(input_path: Path) -> pd.DataFrame:
@@ -35,35 +42,83 @@ def _load_dataframe(input_path: Path) -> pd.DataFrame:
     raise ValueError(f"Unsupported input format: {input_path}")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Soda Core checks against a dataset file")
-    parser.add_argument("--dataset", required=True, choices=sorted(CHECKS_BY_DATASET))
+def _load_dataset(check_name: str, input_path: Optional[Path]) -> pd.DataFrame:
+    if input_path is not None:
+        return _load_dataframe(input_path)
+
+    fixture_path = FIXTURES_DIR / f"{check_name}.json"
+    if not fixture_path.exists():
+        raise FileNotFoundError(
+            f"No fixture found for '{check_name}'. Provide --input or add {fixture_path}"
+        )
+    return _load_dataframe(fixture_path)
+
+
+def run_soda_checks(
+    check_names: list[str],
+    fail_on_error: bool = True,
+    input_path: Optional[Path] = None,
+) -> bool:
+    """Run Soda Core checks from the command line."""
+    manager = SodaDataQualityManager(checks_path=str(CHECKS_DIR))
+    all_passed = True
+
+    for check_name in check_names:
+        check_file = CHECKS_DIR / f"{check_name}.yml"
+        if not check_file.exists():
+            print(f"Check file not found: {check_file}")
+            all_passed = False
+            continue
+
+        print(f"Running Soda checks: {check_name}")
+        df = _load_dataset(check_name, input_path)
+        result = manager.validate(
+            df=df,
+            dataset_name=check_name,
+            check_files=[f"{check_name}.yml"],
+        )
+
+        if not result["success"]:
+            all_passed = False
+            print("Data quality checks failed:")
+            for check in result.get("failed_checks", []):
+                label = check.get("check") or check.get("name") or "Unknown check"
+                print(f"   - {label}")
+        else:
+            print(f"All Soda checks passed for {check_name}.")
+
+    if all_passed:
+        print("All Soda checks passed successfully.")
+        return True
+
+    if fail_on_error:
+        sys.exit(1)
+    return False
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run Soda Core data quality checks")
     parser.add_argument(
         "--checks",
         nargs="+",
-        help="Check YAML filenames (defaults to the dataset preset)",
+        required=True,
+        help="List of check files to run (without .yml extension)",
     )
-    parser.add_argument("--input", required=True, type=Path, help="CSV or JSON input file")
     parser.add_argument(
-        "--checks-path",
-        default="data_quality/checks",
-        help="Directory containing SodaCL YAML files",
+        "--input",
+        type=Path,
+        help="Optional CSV or JSON input file (defaults to data_quality/fixtures/<check>.json)",
     )
+    parser.add_argument(
+        "--fail-on-error",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Exit with error code if checks fail",
+    )
+
     args = parser.parse_args()
-
-    check_files = args.checks or CHECKS_BY_DATASET[args.dataset]
-    df = _load_dataframe(args.input)
-
-    manager = SodaDataQualityManager(checks_path=args.checks_path)
-    result = manager.validate(
-        df=df,
-        dataset_name=args.dataset,
-        check_files=check_files,
-    )
-
-    print(json.dumps(result, indent=2, default=str))
-    return 0 if result["success"] else 1
+    run_soda_checks(args.checks, args.fail_on_error, args.input)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
