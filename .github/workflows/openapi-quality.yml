@@ -26,10 +26,7 @@ jobs:
         run: npm ci
 
       - name: Lint with Spectral
-        uses: stoplightio/spectral-action@v0.8.13
-        with:
-          file_glob: openapi.yaml
-          spectral_ruleset: .spectral.yaml
+        run: npm run lint:openapi
 
       - name: Lint with Redocly
         run: npm run lint:api

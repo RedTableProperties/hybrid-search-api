@@ -2,12 +2,16 @@
   "name": "hybrid-search-api",
   "private": true,
   "scripts": {
+    "lint:openapi": "spectral lint openapi.yaml",
     "lint:api": "redocly lint",
     "check:config": "redocly check-config",
     "docs:api": "redocly build-docs main -o docs/index.html",
+    "docs:pages": "redocly build-docs main -o site/index.html",
     "preview:api": "redocly preview"
   },
   "devDependencies": {
-    "@redocly/cli": "^2.33.0"
+    "@redocly/cli": "^2.33.0",
+    "@stoplight/spectral-cli": "^6.15.0",
+    "@stoplight/spectral-rulesets": "^1.22.4"
   }
 }

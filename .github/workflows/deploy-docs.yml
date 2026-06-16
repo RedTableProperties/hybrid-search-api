@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Generate documentation
-        run: redocly build-docs main -o site/index.html
+        run: npm run docs:pages
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
