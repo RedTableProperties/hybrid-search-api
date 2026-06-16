@@ -15,8 +15,7 @@ async def test_ingestion_stage_returns_raw_data():
 
     result = await stage.process(event)
 
-    assert result == {
-        "status": "ingested",
-        "raw_data": {"source": "stac", "item_id": "scene-42"},
-    }
+    assert result["status"] == "ingested"
+    assert result["raw_data"] == {"source": "stac", "item_id": "scene-42"}
+    assert "text_for_embedding" in result
     assert stage.name == "ingestion"

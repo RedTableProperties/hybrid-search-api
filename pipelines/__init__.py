@@ -11,6 +11,8 @@ from .errors import (
     ValidationError,
 )
 from .ingestion_stage import IngestionStage
+from .publishing_stage import PublishingStage
+from .runner import run_pipeline
 
 __all__ = [
     "BasePipelineError",
@@ -23,6 +25,8 @@ __all__ = [
     "PermanentError",
     "PipelineEvent",
     "PublishingError",
+    "PublishingStage",
     "TransientError",
     "ValidationError",
+    "run_pipeline",
 ]

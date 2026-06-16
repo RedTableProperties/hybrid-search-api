@@ -9,4 +9,11 @@ class IngestionStage(BasePipelineStage):
         # Fetch from STAC / Planet / Airbus / etc.
         payload = event.payload
         # Add actual client calls here (with resilience already applied via base)
-        return {"status": "ingested", "raw_data": payload.get("data")}
+        return {
+            "status": "ingested",
+            "raw_data": payload.get("data"),
+            "text_for_embedding": payload.get(
+                "text_for_embedding",
+                str(payload.get("data", "")),
+            ),
+        }
