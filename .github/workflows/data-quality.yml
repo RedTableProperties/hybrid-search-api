@@ -31,15 +31,17 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Cache Soda Core Results
+      - name: Cache Data Quality Tools
         uses: actions/cache@v4
         with:
           path: |
             soda_results.json
             .soda
-          key: ${{ runner.os }}-soda-${{ hashFiles('data_quality/checks/**/*.yml') }}
+            great_expectations/uncommitted
+            ~/.great_expectations
+          key: ${{ runner.os }}-dq-${{ hashFiles('data_quality/checks/**/*.yml', 'great_expectations/expectations/**/*.json') }}
           restore-keys: |
-            ${{ runner.os }}-soda-
+            ${{ runner.os }}-dq-
 
       - name: Install dependencies
         run: |
