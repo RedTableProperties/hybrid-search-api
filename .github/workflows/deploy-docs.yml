@@ -32,6 +32,9 @@ jobs:
       - name: Generate documentation
         run: npm run docs:pages
 
+      - name: Configure custom domain
+        run: echo "docs.redtableproperties.co.za" > site/CNAME
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
