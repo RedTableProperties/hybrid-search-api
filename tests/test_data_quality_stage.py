@@ -1,7 +1,7 @@
 import pytest
 
 from pipelines.base_stage import PipelineEvent
-from pipelines.data_quality_stage import DataQualityStage
+from data_quality import DataQualityStage
 
 
 @pytest.mark.asyncio
