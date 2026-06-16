@@ -35,7 +35,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Cache Data Quality Tools
+      - name: Cache Data Quality Tools (Optimized)
         uses: actions/cache@v4
         with:
           path: |
@@ -43,16 +43,20 @@ jobs:
             .soda
             great_expectations/uncommitted
             ~/.great_expectations
-          key: ${{ runner.os }}-python3.12-dq-${{ hashFiles(
+          key: ${{ runner.os }}-py${{ matrix.python-version || '3.12' }}-dq-v2-${{ hashFiles(
             'data_quality/checks/**/*.yml',
             'data_quality/soda_manager.py',
-            'data_quality/cli/run_soda_checks.py',
+            'data_quality/gx_manager.py',
+            'data_quality/cli/*.py',
             'great_expectations/expectations/**/*.json',
+            'Makefile',
             'requirements*.txt',
-            'pyproject.toml'
-            ) }}
+            'pyproject.toml',
+            '.github/workflows/data-quality.yml'
+          ) }}
           restore-keys: |
-            ${{ runner.os }}-python3.12-dq-
+            ${{ runner.os }}-py${{ matrix.python-version || '3.12' }}-dq-v2-
+            ${{ runner.os }}-py${{ matrix.python-version || '3.12' }}-dq-
             ${{ runner.os }}-dq-
 
       - name: Install dependencies
