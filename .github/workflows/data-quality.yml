@@ -35,6 +35,10 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      # ============================================================
+      # Optimized Combined Cache for Soda Core + Great Expectations
+      # Key includes: check files, tool code, Makefile, workflow, dependencies
+      # ============================================================
       - name: Cache Data Quality Tools (Optimized)
         uses: actions/cache@v4
         with:
