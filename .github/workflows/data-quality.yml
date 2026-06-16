@@ -3,21 +3,10 @@ name: Data Quality
 on:
   push:
     branches: [main]
-    paths:
-      - "data_quality/**"
-      - "Makefile"
-      - "requirements.txt"
-      - "requirements-ci.txt"
-      - ".github/workflows/data-quality.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "data_quality/**"
-      - "Makefile"
-      - "requirements.txt"
-      - "requirements-ci.txt"
   schedule:
-    - cron: "0 4 * * 0"
+    - cron: '0 3 * * 0'   # Every Sunday at 3:00 AM UTC
   workflow_dispatch:
 
 jobs:
