@@ -1,4 +1,4 @@
-name: Data Quality
+name: Data Quality Checks
 
 on:
   push:
@@ -6,12 +6,11 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 3 * * 0'   # Every Sunday at 3:00 AM UTC
+    - cron: '0 3 * * 0'
   workflow_dispatch:
 
 jobs:
-  quality:
-    if: github.event_name != 'schedule'
+  data-quality:
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -62,15 +61,25 @@ jobs:
           pip install -r requirements.txt -r requirements-ci.txt
           pip install great_expectations
 
-      - name: Run Full Data Quality Suite (Soda + Great Expectations)
+      - name: Run Full Data Quality Suite
         run: make quality
         env:
           SODA_CLOUD_API_KEY_ID: ${{ secrets.SODA_CLOUD_API_KEY_ID }}
           SODA_CLOUD_API_KEY_SECRET: ${{ secrets.SODA_CLOUD_API_KEY_SECRET }}
 
-  # ============================================================
-  # Scheduled Cache Cleanup (runs weekly)
-  # ============================================================
+      - name: Generate Quality Reports
+        if: always()
+        run: make quality-report
+
+      - name: Upload Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-quality-reports
+          path: |
+            soda_results.json
+            great_expectations/uncommitted/data_docs/local_site
+
   cleanup-caches:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -78,18 +87,12 @@ jobs:
       actions: write
       contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Cleanup old caches
+      - name: Cleanup old Data Quality caches
         run: |
-          echo "Cleaning up old Data Quality caches..."
-
-          # Delete caches older than 30 days for this repository
-          gh cache list --limit 100 --json id,createdAt,key,ref \
-            | jq -r '.[] | select(.createdAt < (now - 30*24*60*60 | strftime("%Y-%m-%dT%H:%M:%SZ"))) | .id' \
+          gh cache list --limit 200 --json id,createdAt,key \
+            | jq -r '.[] | select(.createdAt < (now - 30*24*60*60)) | .id' \
             | xargs -r -I {} gh cache delete {}
-
-          echo "Cache cleanup completed."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
