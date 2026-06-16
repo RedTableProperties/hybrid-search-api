@@ -1,6 +1,10 @@
 PYTHON ?= python
 
-.PHONY: quality soda gx test
+YELLOW := \033[1;33m
+GREEN := \033[0;32m
+NC := \033[0m
+
+.PHONY: quality soda gx test clear-soda-cache
 
 quality: soda gx
 
@@ -14,3 +18,9 @@ gx:
 
 test:
 	$(PYTHON) -m pytest -q
+
+clear-soda-cache:
+	@echo -e "$(YELLOW)Clearing Soda Core cache...$(NC)"
+	@rm -f soda_results.json
+	@rm -rf .soda
+	@echo -e "$(GREEN)✅ Soda Core cache cleared.$(NC)"
