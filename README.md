@@ -13,8 +13,10 @@ Async hybrid search service for satellite and geospatial data discovery.
 
 ## Quick start
 
+Requires **Python 3.14+**.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python3.14 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```

@@ -32,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.14'
           cache: 'pip'
 
       # ============================================================
@@ -47,7 +47,7 @@ jobs:
             .soda
             great_expectations/uncommitted
             ~/.great_expectations
-          key: ${{ runner.os }}-py${{ matrix.python-version || '3.12' }}-dq-v2-${{ hashFiles(
+          key: ${{ runner.os }}-py${{ matrix.python-version || '3.14' }}-dq-v2-${{ hashFiles(
             'data_quality/checks/**/*.yml',
             'data_quality/soda_manager.py',
             'data_quality/gx_manager.py',
@@ -59,8 +59,8 @@ jobs:
             '.github/workflows/data-quality.yml'
           ) }}
           restore-keys: |
-            ${{ runner.os }}-py${{ matrix.python-version || '3.12' }}-dq-v2-
-            ${{ runner.os }}-py${{ matrix.python-version || '3.12' }}-dq-
+            ${{ runner.os }}-py${{ matrix.python-version || '3.14' }}-dq-v2-
+            ${{ runner.os }}-py${{ matrix.python-version || '3.14' }}-dq-
             ${{ runner.os }}-dq-
 
       - name: Install dependencies
