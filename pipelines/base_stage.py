@@ -4,6 +4,7 @@ from typing import Any, Dict
 from pydantic import BaseModel
 
 from observability.observability import record_red_metrics, traced
+from pipelines.errors import BasePipelineError
 from resilience.resilience import ResilienceClient
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,12 @@ class BasePipelineStage:
 
     async def _handle_failure(self, event: PipelineEvent, error: Exception):
         logger.warning("[%s] Triggering fallback due to: %s", self.name, error)
-        return {
+        result = {
             "status": "degraded",
             "stage": self.name,
             "event_id": event.event_id,
             "error": str(error),
         }
+        if isinstance(error, BasePipelineError):
+            result["error_detail"] = error.to_dict()
+        return result
