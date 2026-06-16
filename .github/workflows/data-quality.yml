@@ -1,0 +1,54 @@
+name: Data Quality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data_quality/**"
+      - "Makefile"
+      - "requirements.txt"
+      - "requirements-ci.txt"
+      - ".github/workflows/data-quality.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "data_quality/**"
+      - "Makefile"
+      - "requirements.txt"
+      - "requirements-ci.txt"
+  workflow_dispatch:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache Soda Core Results
+        uses: actions/cache@v4
+        with:
+          path: |
+            soda_results.json
+            .soda
+          key: ${{ runner.os }}-soda-${{ hashFiles('data_quality/checks/**/*.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-soda-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-ci.txt
+          pip install great_expectations
+
+      - name: Run Full Data Quality Suite (Soda + Great Expectations)
+        run: make quality
+        env:
+          SODA_CLOUD_API_KEY_ID: ${{ secrets.SODA_CLOUD_API_KEY_ID }}
+          SODA_CLOUD_API_KEY_SECRET: ${{ secrets.SODA_CLOUD_API_KEY_SECRET }}

@@ -55,15 +55,6 @@ jobs:
       - name: Run pytest
         run: pytest -q
 
-      - name: Run Soda Core Data Quality Checks
-        run: |
-          python -m data_quality.cli.run_soda_checks \
-            --checks normalized_data enriched_data \
-            --fail-on-error
-        env:
-          SODA_CLOUD_API_KEY_ID: ${{ secrets.SODA_CLOUD_API_KEY_ID }}
-          SODA_CLOUD_API_KEY_SECRET: ${{ secrets.SODA_CLOUD_API_KEY_SECRET }}
-
       - name: Contract test with Schemathesis
         run: |
           uvicorn main:app --host 0.0.0.0 --port 8000 &

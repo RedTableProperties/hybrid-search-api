@@ -62,6 +62,7 @@ def run_soda_checks(
     """Run Soda Core checks from the command line."""
     manager = SodaDataQualityManager(checks_path=str(CHECKS_DIR))
     all_passed = True
+    run_summary = []
 
     for check_name in check_names:
         check_file = CHECKS_DIR / f"{check_name}.yml"
@@ -77,6 +78,7 @@ def run_soda_checks(
             dataset_name=check_name,
             check_files=[f"{check_name}.yml"],
         )
+        run_summary.append({"check": check_name, "success": result["success"], "result": result})
 
         if not result["success"]:
             all_passed = False
@@ -86,6 +88,9 @@ def run_soda_checks(
                 print(f"   - {label}")
         else:
             print(f"All Soda checks passed for {check_name}.")
+
+    results_path = ROOT / "soda_results.json"
+    results_path.write_text(json.dumps(run_summary, indent=2, default=str), encoding="utf-8")
 
     if all_passed:
         print("All Soda checks passed successfully.")
