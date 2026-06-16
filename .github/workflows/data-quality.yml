@@ -34,37 +34,25 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Cache Soda Core
+      - name: Cache Data Quality Tools (Soda + Great Expectations)
         uses: actions/cache@v4
         with:
           path: |
             soda_results.json
             .soda
-          key: ${{ runner.os }}-python${{ matrix.python-version }}-soda-${{ hashFiles(
+            great_expectations/uncommitted
+            ~/.great_expectations
+          key: ${{ runner.os }}-python${{ matrix.python-version || '3.12' }}-dq-${{ hashFiles(
             'data_quality/checks/**/*.yml',
             'data_quality/soda_manager.py',
             'data_quality/cli/run_soda_checks.py',
+            'great_expectations/expectations/**/*.json',
             'requirements*.txt',
             'pyproject.toml'
             ) }}
           restore-keys: |
-            ${{ runner.os }}-python${{ matrix.python-version }}-soda-
-            ${{ runner.os }}-soda-
-
-      - name: Cache Great Expectations
-        uses: actions/cache@v4
-        with:
-          path: |
-            great_expectations/uncommitted
-            ~/.great_expectations
-            gx_results.json
-          key: ${{ runner.os }}-python${{ matrix.python-version }}-gx-${{ hashFiles(
-            'data_quality/gx_suites/**/*.json',
-            'data_quality/gx_manager.py',
-            'data_quality/cli/run_gx_checks.py'
-            ) }}
-          restore-keys: |
-            ${{ runner.os }}-python${{ matrix.python-version }}-gx-
+            ${{ runner.os }}-python${{ matrix.python-version || '3.12' }}-dq-
+            ${{ runner.os }}-dq-
 
       - name: Install dependencies
         run: |
