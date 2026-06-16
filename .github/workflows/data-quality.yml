@@ -13,9 +13,22 @@ jobs:
   quality:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Cleanup old branch caches
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "Cleaning up old caches for this branch..."
+          gh cache list --ref ${{ github.ref }} --json id,key,createdAt \
+            | jq -r '.[] | select(.createdAt < (now - 7*24*60*60 | strftime("%Y-%m-%dT%H:%M:%SZ"))) | .id' \
+            | xargs -r -I {} gh cache delete {}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
