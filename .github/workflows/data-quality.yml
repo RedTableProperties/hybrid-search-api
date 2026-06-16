@@ -21,9 +21,6 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,10 +28,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
+          python-version: '3.12'
+          cache: 'pip'
 
-      - name: Cache Data Quality Tools (Soda + Great Expectations)
+      - name: Cache Data Quality Tools
         uses: actions/cache@v4
         with:
           path: |
@@ -42,7 +39,7 @@ jobs:
             .soda
             great_expectations/uncommitted
             ~/.great_expectations
-          key: ${{ runner.os }}-python${{ matrix.python-version || '3.12' }}-dq-${{ hashFiles(
+          key: ${{ runner.os }}-python3.12-dq-${{ hashFiles(
             'data_quality/checks/**/*.yml',
             'data_quality/soda_manager.py',
             'data_quality/cli/run_soda_checks.py',
@@ -51,7 +48,7 @@ jobs:
             'pyproject.toml'
             ) }}
           restore-keys: |
-            ${{ runner.os }}-python${{ matrix.python-version || '3.12' }}-dq-
+            ${{ runner.os }}-python3.12-dq-
             ${{ runner.os }}-dq-
 
       - name: Install dependencies
