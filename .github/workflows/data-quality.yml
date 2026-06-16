@@ -17,7 +17,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cleanup old branch caches
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -30,10 +30,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.14'
-          cache: 'pip'
+          cache: pip
 
       # ============================================================
       # Optimized Combined Cache for Soda Core + Great Expectations
@@ -47,20 +47,10 @@ jobs:
             .soda
             great_expectations/uncommitted
             ~/.great_expectations
-          key: ${{ runner.os }}-py${{ matrix.python-version || '3.14' }}-dq-v2-${{ hashFiles(
-            'data_quality/checks/**/*.yml',
-            'data_quality/soda_manager.py',
-            'data_quality/gx_manager.py',
-            'data_quality/cli/*.py',
-            'great_expectations/expectations/**/*.json',
-            'Makefile',
-            'requirements*.txt',
-            'pyproject.toml',
-            '.github/workflows/data-quality.yml'
-          ) }}
+          key: ${{ runner.os }}-py3.14-dq-v2-${{ hashFiles('data_quality/checks/**/*.yml', 'data_quality/soda_manager.py', 'data_quality/gx_manager.py', 'data_quality/cli/*.py', 'great_expectations/expectations/**/*.json', 'Makefile', 'requirements*.txt', 'pyproject.toml', '.github/workflows/data-quality.yml') }}
           restore-keys: |
-            ${{ runner.os }}-py${{ matrix.python-version || '3.14' }}-dq-v2-
-            ${{ runner.os }}-py${{ matrix.python-version || '3.14' }}-dq-
+            ${{ runner.os }}-py3.14-dq-v2-
+            ${{ runner.os }}-py3.14-dq-
             ${{ runner.os }}-dq-
 
       - name: Install dependencies
@@ -81,7 +71,7 @@ jobs:
 
       - name: Upload Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: data-quality-reports
           path: |
@@ -95,12 +85,12 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cleanup old Data Quality caches
         run: |
           gh cache list --limit 200 --json id,createdAt,key \
-            | jq -r '.[] | select(.createdAt < (now - 30*24*60*60)) | .id' \
+            | jq -r '.[] | select((.createdAt | fromdateiso8601) < (now - 30*24*60*60)) | .id' \
             | xargs -r -I {} gh cache delete {}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
