@@ -1,0 +1,89 @@
+name: Full OpenAPI Quality + Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-and-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Lint with Spectral
+        uses: stoplightio/spectral-action@v0.8.15
+        with:
+          file_glob: openapi.yaml
+          spectral_ruleset: .spectral.yaml
+
+      - name: Lint with Redocly
+        run: npm run lint:api
+
+      - name: Generate API documentation
+        run: npm run docs:api
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation
+          path: docs/
+          if-no-files-found: error
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-ci.txt
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Contract test with Schemathesis
+        run: |
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/v1/docs > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          schemathesis run openapi.yaml \
+            --url http://localhost:8000/v1 \
+            --checks all \
+            --exclude-checks negative_data_rejection \
+            --max-examples=20
+
+      - name: Install oasdiff
+        if: github.event_name == 'pull_request'
+        run: |
+          curl -fsSL https://github.com/Tufin/oasdiff/releases/download/v1.10.52/oasdiff_1.10.52_linux_amd64.tar.gz -o oasdiff.tar.gz
+          tar -xzf oasdiff.tar.gz oasdiff
+          chmod +x oasdiff
+          sudo mv oasdiff /usr/local/bin/
+
+      - name: Detect breaking OpenAPI changes
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin main
+          git show origin/main:openapi.yaml > openapi-main.yaml
+          oasdiff diff openapi-main.yaml openapi.yaml --fail-on-diff

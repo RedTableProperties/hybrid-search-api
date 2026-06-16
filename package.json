@@ -1,0 +1,13 @@
+{
+  "name": "hybrid-search-api",
+  "private": true,
+  "scripts": {
+    "lint:api": "redocly lint",
+    "check:config": "redocly check-config",
+    "docs:api": "redocly build-docs main -o docs/index.html",
+    "preview:api": "redocly preview"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.33.0"
+  }
+}

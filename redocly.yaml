@@ -1,0 +1,71 @@
+extends:
+  - recommended
+
+rules:
+  # ====================== Core Rules ======================
+  operation-operationId: error
+  operation-description: error
+  path-parameters-defined: error
+  no-identical-paths: error
+
+  # ====================== Security Rules ======================
+  security-defined: error
+
+  # Prevent common security issues
+  no-ambiguous-paths: error
+  operation-parameters-unique: error
+
+  # ====================== Quality & Best Practices ======================
+  operation-summary: warn
+  parameter-description: warn
+  operation-tag-defined: warn
+  operation-4xx-response: warn
+
+  # Relax noisy rules for scaffold environments
+  info-license-strict: off
+  no-server-example.com: off
+
+  # ====================== Custom Rules ======================
+  rule/security-schemes-require-scopes:
+    where:
+      - subject:
+          type: SecurityScheme
+          property: type
+        assertions:
+          const: oauth2
+    subject:
+      type: SecurityScheme
+      property: flows
+    message: OAuth2 security schemes should define scopes in flows
+    severity: warn
+    assertions:
+      defined: true
+
+  rule/rate-limit-documentation:
+    subject:
+      type: Operation
+      property: description
+    message: Operations should document rate limiting in the description
+    severity: warn
+    assertions:
+      pattern: "(rate.?limit|throttl|requests?.?per)"
+
+  rule/operation-id-kebab-case:
+    subject:
+      type: Operation
+      property: operationId
+    message: Operation IDs should use kebab-case
+    severity: warn
+    assertions:
+      pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+
+apis:
+  main:
+    root: openapi.yaml
+
+openapi:
+  htmlTemplate: ./docs/template.html
+  theme:
+    colors:
+      primary:
+        main: "#0066cc"
