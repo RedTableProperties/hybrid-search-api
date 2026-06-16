@@ -1,4 +1,5 @@
 from .base_stage import BasePipelineStage, PipelineEvent
+from .data_quality_stage import DataQualityStage
 from .enrichment_stage import EnrichmentStage
 from .errors import (
     BasePipelineError,
@@ -17,6 +18,7 @@ from .runner import run_pipeline
 __all__ = [
     "BasePipelineError",
     "BasePipelineStage",
+    "DataQualityStage",
     "EnrichmentError",
     "EnrichmentStage",
     "ErrorSeverity",

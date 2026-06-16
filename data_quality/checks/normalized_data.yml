@@ -1,0 +1,3 @@
+checks for normalized_data:
+  - row_count > 0
+  - missing_count(scene_id) = 0
