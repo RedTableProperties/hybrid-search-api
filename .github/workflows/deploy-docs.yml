@@ -1,8 +1,15 @@
-name: Deploy API Documentation to GitHub Pages
+name: Deploy Documentation
 
 on:
   push:
     branches: [main]
+    paths:
+      - "openapi.yaml"
+      - "redocly.yaml"
+      - "docs/template.html"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
 permissions:
@@ -12,13 +19,14 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate documentation
+      - name: Build documentation
         run: npm run docs:pages
 
       - name: Configure custom domain
