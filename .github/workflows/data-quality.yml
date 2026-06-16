@@ -16,10 +16,13 @@ on:
       - "Makefile"
       - "requirements.txt"
       - "requirements-ci.txt"
+  schedule:
+    - cron: "0 4 * * 0"
   workflow_dispatch:
 
 jobs:
   quality:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -62,3 +65,29 @@ jobs:
         env:
           SODA_CLOUD_API_KEY_ID: ${{ secrets.SODA_CLOUD_API_KEY_ID }}
           SODA_CLOUD_API_KEY_SECRET: ${{ secrets.SODA_CLOUD_API_KEY_SECRET }}
+
+  # ============================================================
+  # Scheduled Cache Cleanup (runs weekly)
+  # ============================================================
+  cleanup-caches:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cleanup old caches
+        run: |
+          echo "Cleaning up old Data Quality caches..."
+
+          # Delete caches older than 30 days for this repository
+          gh cache list --limit 100 --json id,createdAt,key,ref \
+            | jq -r '.[] | select(.createdAt < (now - 30*24*60*60 | strftime("%Y-%m-%dT%H:%M:%SZ"))) | .id' \
+            | xargs -r -I {} gh cache delete {}
+
+          echo "Cache cleanup completed."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
