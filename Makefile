@@ -4,13 +4,16 @@ YELLOW := \033[1;33m
 GREEN := \033[0;32m
 NC := \033[0m
 
-.PHONY: quality quality-soda quality-gx quality-report soda gx test clear-soda-cache
+.PHONY: quality quality-soda quality-gx quality-gx-docs quality-report soda gx test clear-soda-cache
 
 quality: quality-soda quality-gx
 
 quality-soda: soda
 
 quality-gx: gx
+
+quality-gx-docs:
+	$(PYTHON) data_quality/cli/build_gx_data_docs.py
 
 quality-report:
 	$(PYTHON) data_quality/cli/generate_quality_reports.py

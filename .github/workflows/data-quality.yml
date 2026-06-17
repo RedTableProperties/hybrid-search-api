@@ -14,34 +14,17 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   data-quality:
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
-      pages: write
-      id-token: write
-    environment: ${{ github.ref == 'refs/heads/main' && 'github-pages' || '' }}
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Cleanup old branch caches
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          echo "Cleaning up old caches for this branch..."
-          gh cache list --ref ${{ github.ref }} --json id,key,createdAt \
-            | jq -r '.[] | select(.createdAt < (now - 7*24*60*60 | strftime("%Y-%m-%dT%H:%M:%SZ"))) | .id' \
-            | xargs -r -I {} gh cache delete {}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -49,10 +32,7 @@ jobs:
           python-version: '3.14'
           cache: pip
 
-      # ============================================================
-      # Optimized Combined Cache for Soda Core + Great Expectations
-      # Key includes: check files, tool code, Makefile, workflow, dependencies
-      # ============================================================
+      # Cache for both Soda and Great Expectations
       - name: Cache Data Quality Tools
         uses: actions/cache@v4
         with:
@@ -64,14 +44,12 @@ jobs:
           key: ${{ runner.os }}-py3.14-dq-v2-${{ hashFiles('data_quality/checks/**/*.yml', 'data_quality/soda_manager.py', 'data_quality/gx_manager.py', 'data_quality/cli/*.py', 'great_expectations/expectations/**/*.json', 'Makefile', 'requirements*.txt', 'pyproject.toml', '.github/workflows/data-quality.yml') }}
           restore-keys: |
             ${{ runner.os }}-py3.14-dq-v2-
-            ${{ runner.os }}-py3.14-dq-
             ${{ runner.os }}-dq-
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-ci.txt
-          pip install great_expectations
+          pip install soda-core pandas great_expectations
 
       # ============================================================
       # Run Soda Core Checks (Primary)
@@ -93,23 +71,22 @@ jobs:
       # ============================================================
       - name: Build Great Expectations Data Docs
         if: always()
-        run: make quality-report
+        run: |
+          great_expectations docs build --site-name local_site \
+            || python data_quality/cli/build_gx_data_docs.py
 
       # ============================================================
       # Deploy Data Docs to GitHub Pages
       # ============================================================
       - name: Setup Pages
-        if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v6
 
       - name: Upload Data Docs Artifact
-        if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:
           path: great_expectations/uncommitted/data_docs/local_site
 
       - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main'
         id: deployment
         uses: actions/deploy-pages@v5
 
@@ -123,23 +100,6 @@ jobs:
           name: data-quality-reports
           path: |
             soda_results.json
-            gx_results.json
-            great_expectations/uncommitted/data_docs/local_site
+            great_expectations/uncommitted/validations
           retention-days: 30
-
-  cleanup-caches:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Cleanup old Data Quality caches
-        run: |
-          gh cache list --limit 200 --json id,createdAt,key \
-            | jq -r '.[] | select((.createdAt | fromdateiso8601) < (now - 30*24*60*60)) | .id' \
-            | xargs -r -I {} gh cache delete {}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if-no-files-found: warn
