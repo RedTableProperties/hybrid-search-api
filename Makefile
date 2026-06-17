@@ -4,9 +4,13 @@ YELLOW := \033[1;33m
 GREEN := \033[0;32m
 NC := \033[0m
 
-.PHONY: quality quality-report soda gx test clear-soda-cache
+.PHONY: quality quality-soda quality-gx quality-report soda gx test clear-soda-cache
 
-quality: soda gx
+quality: quality-soda quality-gx
+
+quality-soda: soda
+
+quality-gx: gx
 
 quality-report:
 	$(PYTHON) data_quality/cli/generate_quality_reports.py
@@ -14,7 +18,8 @@ quality-report:
 soda:
 	$(PYTHON) -m data_quality.cli.run_soda_checks \
 		--checks normalized_data enriched_data published_data \
-		--fail-on-error
+		--fail-on-error \
+		$(if $(SODA_CLOUD_API_KEY_ID),--cloud,)
 
 gx:
 	$(PYTHON) -m data_quality.cli.run_gx_checks
