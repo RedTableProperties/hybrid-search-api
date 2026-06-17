@@ -2,7 +2,10 @@
 """
 Soda Core CLI - Run Soda Data Quality Checks
 
-Supports both human-readable and JSON output modes.
+Usage Examples:
+    python -m data_quality.cli.run_soda_checks --checks normalized_data
+    python -m data_quality.cli.run_soda_checks --checks normalized_data enriched_data --fail-on-error
+    python -m data_quality.cli.run_soda_checks --checks normalized_data --cloud
 """
 
 import argparse
@@ -20,6 +23,7 @@ from soda.scan import Scan
 
 from data_quality.pandas_sodacl import run_pandas_checks
 from data_quality.soda_manager import SodaDataQualityManager
+from observability.observability import traced
 
 CHECKS_DIR = ROOT / "data_quality" / "checks"
 FIXTURES_DIR = ROOT / "data_quality" / "fixtures"
@@ -54,7 +58,7 @@ def _load_dataset(check_name: str, input_path: Optional[Path]) -> pd.DataFrame:
     return _load_dataframe(fixture_path)
 
 
-def _scan_failed_checks(scan: Scan) -> tuple[bool, list[dict[str, Any]]]:
+def _scan_failed_checks(scan: Scan) -> tuple[bool, list[Any]]:
     has_failed = (
         scan.has_failed_checks()
         if hasattr(scan, "has_failed_checks")
@@ -74,7 +78,7 @@ def _normalize_failed_checks(failed_checks: list[Any]) -> list[dict[str, Any]]:
         if isinstance(check, dict):
             normalized.append(
                 {
-                    "check": check.get("check") or check.get("name") or "Unknown",
+                    "check": check.get("check") or check.get("name") or "Unknown check",
                     "identity": check.get("identity"),
                     "definition": check.get("definition"),
                 }
@@ -118,8 +122,7 @@ def _validate_check(
     use_cloud: bool,
 ) -> dict[str, Any]:
     manager = SodaDataQualityManager(checks_path=str(CHECKS_DIR))
-    check_file = f"{check_name}.yml"
-    check_path = CHECKS_DIR / check_file
+    check_path = CHECKS_DIR / f"{check_name}.yml"
 
     if manager._soda_pandas_supported():
         return _validate_with_scan(df, check_name, check_path, use_cloud)
@@ -133,102 +136,88 @@ def run_soda_checks(
     check_names: list[str],
     fail_on_error: bool = True,
     use_cloud: bool = False,
-    json_output: bool = False,
     input_path: Optional[Path] = None,
 ) -> bool:
     """
-    Run Soda Core checks.
+    Run Soda Core checks from the command line.
 
     Args:
-        check_names: List of check file names (without .yml)
-        fail_on_error: Exit with code 1 if checks fail
-        use_cloud: Enable Soda Cloud connection
-        json_output: Output results as JSON instead of text
+        check_names: List of check file names (without .yml extension)
+        fail_on_error: Exit with code 1 if any check fails
+        use_cloud: Connect to Soda Cloud for notifications and history
         input_path: Optional CSV/JSON input (defaults to fixtures per check)
     """
-    loaded_checks: list[str] = []
-    run_summary: list[dict[str, Any]] = []
-    all_failed_checks: list[dict[str, Any]] = []
-    all_passed = True
+    with traced("soda_cli_checks"):
+        for check_name in check_names:
+            check_file = CHECKS_DIR / f"{check_name}.yml"
+            if not check_file.exists():
+                print(f"❌ Check file not found: {check_file}")
+                if fail_on_error:
+                    sys.exit(1)
+                return False
+            print(f"📋 Loaded check file: {check_name}.yml")
 
-    for check_name in check_names:
-        check_file = CHECKS_DIR / f"{check_name}.yml"
-        if not check_file.exists():
-            error_msg = f"Check file not found: {check_file}"
-            if json_output:
-                print(json.dumps({"success": False, "error": error_msg}, indent=2))
-            else:
-                print(f"❌ {error_msg}")
-            if fail_on_error:
-                sys.exit(1)
-            return False
+        print(f"\n🔍 Running Soda checks: {', '.join(check_names)}")
+        if use_cloud:
+            print("☁️  Connected to Soda Cloud")
 
-        if not json_output:
-            print(f"Running Soda checks: {check_name}")
+        run_summary: list[dict[str, Any]] = []
+        all_failed_checks: list[dict[str, Any]] = []
+        all_passed = True
 
-        try:
-            df = _load_dataset(check_name, input_path)
-        except (FileNotFoundError, ValueError) as exc:
-            error_msg = str(exc)
-            if json_output:
-                print(json.dumps({"success": False, "error": error_msg}, indent=2))
-            else:
-                print(f"❌ {error_msg}")
-            if fail_on_error:
-                sys.exit(1)
-            return False
+        for check_name in check_names:
+            try:
+                df = _load_dataset(check_name, input_path)
+            except (FileNotFoundError, ValueError) as exc:
+                print(f"❌ {exc}")
+                if fail_on_error:
+                    sys.exit(1)
+                return False
 
-        result = _validate_check(check_name, df, use_cloud)
-        loaded_checks.append(check_name)
-        run_summary.append({"check": check_name, "success": result["success"], "result": result})
+            result = _validate_check(check_name, df, use_cloud)
+            run_summary.append(
+                {"check": check_name, "success": result["success"], "result": result}
+            )
 
-        if not result["success"]:
-            all_passed = False
-            all_failed_checks.extend(result.get("failed_checks", []))
-            if not json_output:
+            if not result["success"]:
+                all_passed = False
+                all_failed_checks.extend(result.get("failed_checks", []))
                 print("Data quality checks failed:")
                 for check in result.get("failed_checks", []):
                     print(f"   - {check.get('check', 'Unknown check')}")
-        elif not json_output:
-            print(f"All Soda checks passed for {check_name}.")
 
-    aggregate = {
-        "success": all_passed,
-        "checks_run": loaded_checks,
-        "failed_checks_count": len(all_failed_checks),
-        "failed_checks": all_failed_checks,
-        "cloud_enabled": use_cloud,
-        "results": run_summary,
-    }
+        results_path = ROOT / "soda_results.json"
+        results_path.write_text(json.dumps(run_summary, indent=2, default=str), encoding="utf-8")
 
-    results_path = ROOT / "soda_results.json"
-    results_path.write_text(json.dumps(run_summary, indent=2, default=str), encoding="utf-8")
+        if all_passed:
+            print("\n✅ All Soda checks passed successfully.")
+            return True
 
-    if json_output:
-        print(json.dumps(aggregate, indent=2, default=str))
-    elif all_passed:
-        print(f"\n✅ All Soda checks passed successfully. ({len(loaded_checks)} checks)")
-    else:
-        print(f"\n❌ {len(all_failed_checks)} check(s) failed:")
+        print("\n❌ Some checks failed:")
         for check in all_failed_checks:
             print(f"   - {check.get('check', 'Unknown check')}")
 
-    if not all_passed and fail_on_error:
-        sys.exit(1)
-
-    return all_passed
+        if fail_on_error:
+            sys.exit(1)
+        return False
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run Soda Core data quality checks",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python -m data_quality.cli.run_soda_checks --checks normalized_data
+  python -m data_quality.cli.run_soda_checks --checks normalized_data enriched_data --cloud
+        """,
     )
+
     parser.add_argument(
         "--checks",
         nargs="+",
         required=True,
-        help="Check files to run (without .yml extension)",
+        help="One or more check files to run (without .yml extension)",
     )
     parser.add_argument(
         "--input",
@@ -239,19 +228,13 @@ def main() -> None:
         "--fail-on-error",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Exit with error if any check fails",
+        help="Exit with error code if any check fails (default: True)",
     )
     parser.add_argument(
         "--cloud",
         action="store_true",
         default=False,
-        help="Connect to Soda Cloud",
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        default=False,
-        help="Output results in JSON format",
+        help="Connect to Soda Cloud for notifications and history",
     )
 
     args = parser.parse_args()
@@ -259,7 +242,6 @@ def main() -> None:
         check_names=args.checks,
         fail_on_error=args.fail_on_error,
         use_cloud=args.cloud,
-        json_output=args.json,
         input_path=args.input,
     )
 
