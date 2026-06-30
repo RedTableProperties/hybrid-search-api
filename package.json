@@ -10,7 +10,7 @@
     "preview:api": "redocly preview"
   },
   "devDependencies": {
-    "@redocly/cli": "^2.33.0",
+    "@redocly/cli": "^2.35.1",
     "@stoplight/spectral-cli": "^6.15.0",
     "@stoplight/spectral-rulesets": "^1.22.4"
   }
