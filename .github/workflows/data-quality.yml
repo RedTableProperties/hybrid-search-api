@@ -34,7 +34,7 @@ jobs:
 
       # Cache for both Soda and Great Expectations
       - name: Cache Data Quality Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             soda_results.json
