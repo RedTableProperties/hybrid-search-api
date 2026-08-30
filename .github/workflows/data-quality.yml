@@ -32,24 +32,23 @@ jobs:
           python-version: '3.14'
           cache: pip
 
-      # Cache for both Soda and Great Expectations
-      - name: Cache Data Quality Tools
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install soda-core pandas great_expectations
+
+      # Cache for Great Expectations artifacts (excluding pip)
+      - name: Cache Data Quality Artifacts
         uses: actions/cache@v4
         with:
           path: |
             soda_results.json
             .soda
             great_expectations/uncommitted
-            ~/.great_expectations
-          key: ${{ runner.os }}-py3.14-dq-v2-${{ hashFiles('data_quality/checks/**/*.yml', 'data_quality/soda_manager.py', 'data_quality/gx_manager.py', 'data_quality/cli/*.py', 'great_expectations/expectations/**/*.json', 'Makefile', 'requirements*.txt', 'pyproject.toml', '.github/workflows/data-quality.yml') }}
+          key: ${{ runner.os }}-dq-v2-${{ hashFiles('data_quality/checks/**/*.yml', 'data_quality/soda_manager.py', 'data_quality/gx_manager.py', 'data_quality/cli/*.py') }}
           restore-keys: |
-            ${{ runner.os }}-py3.14-dq-v2-
+            ${{ runner.os }}-dq-v2-
             ${{ runner.os }}-dq-
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install soda-core pandas great_expectations
 
       # ============================================================
       # Run Soda Core Checks (Primary)
